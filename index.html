@@ -15,30 +15,26 @@
     .img-wrap{position:relative;max-width:700px}
     img.zoomable{max-width:100%;display:block;border-radius:8px}
 
-    /* Lente circular */
     .lens{
       position:absolute;
       border-radius:50%;
       width:var(--lens-size);
       height:var(--lens-size);
       box-shadow:0 6px 18px rgba(2,6,23,0.15), inset 0 0 12px rgba(255,255,255,0.3);
-      pointer-events:none; /* não bloqueia o cursor */
-      display:none; /* mostra só quando ativo */
-      transform:translate(-50%,-50%);
+      pointer-events:none;
+      display:none;
       background-repeat:no-repeat;
       border:2px solid rgba(255,255,255,0.6);
+      transform:translate(-50%, -50%);
     }
 
-    /* Mensagem de ajuda (pequena) */
     .hint{font-size:13px;color:#556;}
 
-    /* Alternativa: zoom em janela lateral (opcional) */
     .result{
       position:absolute;right:-320px;top:0;width:300px;height:300px;border-radius:8px;overflow:hidden;border:1px solid #e6e9ef;background:#fff;display:none;box-shadow:0 6px 18px rgba(2,6,23,0.06)
     }
-    .result img{width:100%;height:100%;object-fit:cover}
+    .result img{width:100%;height:100%;object-fit:cover;transition: object-position 0.05s linear;}
 
-    /* Responsivo */
     @media (max-width:900px){
       .result{display:none !important;right:0;position:relative;margin-top:12px}
       .img-row{display:block}
@@ -56,8 +52,7 @@
 
     <div class="img-row" style="display:flex;gap:18px;align-items:flex-start;position:relative">
       <div class="img-wrap">
-        <!-- Substitui o src pela tua imagem -->
-        <img id="image" class="zoomable" src="Bandicoots.png" alt="Bandicoots">
+        <img id="image" class="zoomable" src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1200&auto=format&fit=crop&s=placeholder" alt="Fotografia de exemplo para teste de lupa">
         <div id="lens" class="lens" role="img" aria-hidden="true"></div>
       </div>
 
@@ -68,7 +63,6 @@
   </div>
 
   <script>
-    // Elementos
     const img = document.getElementById('image');
     const lens = document.getElementById('lens');
     const toggleBtn = document.getElementById('toggleLens');
@@ -76,21 +70,16 @@
     const result = document.getElementById('result');
     const resultImg = document.getElementById('resultImg');
 
-    // Estado
     let active = false;
     let showSide = false;
 
-    // Configurações (podes alterar)
     const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom')) || 2.5;
     const lensSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--lens-size')) || 140;
 
-    // Prepara imagens
     function prepare(){
-      // Para a lente circular, usamos imagem de background com tamanho aumentado
       const naturalW = img.naturalWidth;
       const naturalH = img.naturalHeight;
       lens.style.backgroundImage = `url('${img.src}')`;
-      // Calcula escala entre natural size e display size
       const rect = img.getBoundingClientRect();
       const scaleX = naturalW / rect.width;
       const scaleY = naturalH / rect.height;
@@ -100,7 +89,6 @@
       result.style.display = showSide ? 'block' : 'none';
     }
 
-    // Ativa/desativa o modo lupa
     toggleBtn.addEventListener('click', ()=>{
       active = !active;
       toggleBtn.textContent = active ? '🔍 Lupa ativa' : '🔍 Ativar lupa';
@@ -109,80 +97,52 @@
       result.style.display = active && showSide ? 'block' : 'none';
     });
 
-    // Alterna a janela lateral (janela de zoom)
     toggleSide.addEventListener('click', ()=>{
       showSide = !showSide;
       toggleSide.textContent = showSide ? '▢ Janela visível' : '▢ Janela de zoom';
       result.style.display = showSide && active ? 'block' : 'none';
     });
 
-    // Calcula posição da lente e ajusta background
     function moveLens(evt){
       if(!active) return;
       evt.preventDefault();
       const rect = img.getBoundingClientRect();
       let clientX, clientY;
       if(evt.touches && evt.touches[0]){clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY;} else {clientX = evt.clientX; clientY = evt.clientY}
-      // posição dentro da imagem
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      // evita sair fora
-      const posX = Math.max(0, Math.min(rect.width, x));
-      const posY = Math.max(0, Math.min(rect.height, y));
-      const percentX = posX / rect.width * 100;
-      const percentY = posY / rect.height * 100;
+      let x = clientX - rect.left;
+      let y = clientY - rect.top;
+      x = Math.max(0, Math.min(rect.width, x));
+      y = Math.max(0, Math.min(rect.height, y));
 
-      // posiciona lente
-      lens.style.left = `${rect.left + posX}px`;
-      lens.style.top = `${rect.top + posY}px`;
+      lens.style.left = `${x}px`;
+      lens.style.top = `${y}px`;
 
-      // calcula background position para a lente (usando escala natural/display)
       const scaleX = parseFloat(lens.dataset.scaleX || 1);
       const scaleY = parseFloat(lens.dataset.scaleY || 1);
-      const bgX = -(posX * scaleX - lensSize/2 * zoom);
-      const bgY = -(posY * scaleY - lensSize/2 * zoom);
+      const bgX = -(x * scaleX * zoom - lensSize / 2);
+      const bgY = -(y * scaleY * zoom - lensSize / 2);
       lens.style.backgroundSize = `${img.naturalWidth * zoom}px ${img.naturalHeight * zoom}px`;
       lens.style.backgroundPosition = `${bgX}px ${bgY}px`;
 
-      // atualiza janela lateral
       if(showSide){
-        // coloca o centro da janela lateral na mesma área
-        const rx = Math.max(0, Math.min(img.naturalWidth, posX * scaleX));
-        const ry = Math.max(0, Math.min(img.naturalHeight, posY * scaleY));
+        const rx = x * scaleX;
+        const ry = y * scaleY;
         resultImg.style.objectPosition = `${(rx/img.naturalWidth)*100}% ${(ry/img.naturalHeight)*100}%`;
-        // escalamos a imagem no result para mostrar o detalhe ampliado
-        resultImg.style.width = `${img.naturalWidth * zoom / (img.naturalWidth / result.clientWidth)}px`;
       }
     }
 
-    // Eventos
     img.addEventListener('load', prepare);
     window.addEventListener('resize', prepare);
-
-    // Movimentação do rato
     img.addEventListener('mousemove', moveLens);
     img.addEventListener('touchmove', moveLens, {passive:false});
-
-    // Mostrar lente também quando o cursor entra (útil para desktop)
-    img.addEventListener('mouseenter', (e)=>{ if(active) lens.style.display='block' });
-    img.addEventListener('mouseleave', (e)=>{ if(active) lens.style.display='none' });
-
-    // Inicializar (caso a imagem já esteja em cache)
+    img.addEventListener('mouseenter', ()=>{ if(active) lens.style.display='block'; });
+    img.addEventListener('mouseleave', ()=>{ if(active) lens.style.display='none'; });
     if(img.complete) prepare();
 
-    // Acessibilidade: atalho de teclado (L) para ativar/desativar
     document.addEventListener('keydown', (e)=>{
-      if(e.key.toLowerCase() === 'l'){
-        toggleBtn.click();
-      }
-      if(e.key.toLowerCase() === 'j'){
-        toggleSide.click();
-      }
+      if(e.key.toLowerCase() === 'l'){ toggleBtn.click(); }
+      if(e.key.toLowerCase() === 'j'){ toggleSide.click(); }
     });
-
-    // Permite trocar a imagem dinamicamente (exemplo)
-    // Exemplo: image.src = 'outra-imagem.jpg'; prepare();
-
   </script>
 </body>
 </html>
